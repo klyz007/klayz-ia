@@ -20,8 +20,9 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# LIGNE CORRIGÉE : Utilisation de guillemets simples pour la classe CSS
 st.markdown("<h1>⚡ KLAYZ NEURAL INTERFACE</h1>", unsafe_allow_html=True)
-st.markdown("<p class="status-text">Intelligence Artificielle v3.0 • Status: Opérationnel</p>", unsafe_allow_html=True)
+st.markdown("<p class='status-text'>Intelligence Artificielle v3.0 • Status: Opérationnel</p>", unsafe_allow_html=True)
 
 # ===================== BARRE LATÉRALE =====================
 with st.sidebar:
@@ -46,7 +47,6 @@ for message in st.session_state.messages:
 
 # ===================== MOTEUR DE RÉPONSE (API) =====================
 def ask_klayz(prompt):
-    # Utilisation de Zephyr-7B (plus stable et rapide)
     API_URL = "https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta"
     
     try:
@@ -56,7 +56,7 @@ def ask_klayz(prompt):
     except:
         return "⚠️ Erreur : Le token HF_TOKEN est manquant dans les Secrets Streamlit."
 
-    # Préparation du texte pour l'IA
+    # Préparation du texte pour l'IA (Format Zephyr)
     formatted_prompt = f"<|system|>\nTu es Klayz, une IA puissante et amicale.</s>\n<|user|>\n{prompt}</s>\n<|assistant|>\n"
     
     payload = {
@@ -65,13 +65,13 @@ def ask_klayz(prompt):
     }
 
     try:
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=20)
+        response = requests.post(API_URL, headers=headers, json=payload, timeout=25)
         output = response.json()
 
         # Si le modèle est en train de charger
         if isinstance(output, dict) and "estimated_time" in output:
             wait_time = int(output['estimated_time'])
-            return f"⏳ Mon processeur chauffe... Je serai prêt dans environ {wait_time} secondes. Réessaie un petit coup !"
+            return f"⏳ Mon processeur chauffe... Je serai prêt dans environ {wait_time} secondes. Réessaie dans un instant !"
 
         # Si on a une réponse valide
         if isinstance(output, list) and len(output) > 0:
@@ -83,7 +83,7 @@ def ask_klayz(prompt):
         return f"📡 Erreur de connexion : {str(e)}"
 
 # ===================== ZONE DE SAISIE =====================
-if user_input := st.chat_input("Envoyez un message..."):
+if user_input := st.chat_input("Envoyez un message à Klayz..."):
     # Ajouter le message de l'utilisateur
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
@@ -92,11 +92,11 @@ if user_input := st.chat_input("Envoyez un message..."):
     # Réponse de l'IA
     with st.chat_message("assistant"):
         placeholder = st.empty()
-        placeholder.markdown("*Klayz analyse...*")
+        placeholder.markdown("*Klayz analyse les données...*")
         
         full_response = ask_klayz(user_input)
         
-        # Petit effet de frappe pour le style
+        # Effet de frappe fluide
         displayed_text = ""
         for char in full_response:
             displayed_text += char
