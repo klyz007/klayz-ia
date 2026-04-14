@@ -20,7 +20,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown("<h1>⚡ KLAYZ NEURAL INTERFACE</h1>", unsafe_allow_html=True)
-st.markdown("<p class='status-text'>Intelligence Artificielle v3.0 • Status: Opérationnel</p>", unsafe_allow_html=True)
+st.markdown("<p class='status-text'>Intelligence Artificielle v3.1 • Status: Opérationnel (Router Mode)</p>", unsafe_allow_html=True)
 
 # ===================== BARRE LATÉRALE =====================
 with st.sidebar:
@@ -35,7 +35,7 @@ with st.sidebar:
 # ===================== INITIALISATION DU CHAT =====================
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Système activé. Je suis **Klayz**. Comment puis-je t'aider ?"}
+        {"role": "assistant", "content": "Système activé. Je suis **Klayz**. Comment puis-je t'aider aujourd'hui ?"}
     ]
 
 for message in st.session_state.messages:
@@ -44,8 +44,8 @@ for message in st.session_state.messages:
 
 # ===================== MOTEUR DE RÉPONSE (API) =====================
 def ask_klayz(prompt):
-    # Modèle Zephyr : Très stable pour le gratuit
-    API_URL = "https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta"
+    # NOUVELLE URL OBLIGATOIRE EN 2026
+    API_URL = "https://router.huggingface.co/hf-inference/models/HuggingFaceH4/zephyr-7b-beta"
     
     try:
         token = st.secrets["HF_TOKEN"]
@@ -57,22 +57,30 @@ def ask_klayz(prompt):
     
     payload = {
         "inputs": formatted_prompt,
-        "parameters": {"max_new_tokens": 512, "temperature": 0.7, "return_full_text": False},
-        "options": {"wait_for_model": True} # FORCE L'IA À SE RÉVEILLER
+        "parameters": {
+            "max_new_tokens": 512, 
+            "temperature": 0.7, 
+            "return_full_text": False
+        },
+        "options": {"wait_for_model": True}
     }
 
     try:
-        # On laisse 60 secondes au serveur pour démarrer
         response = requests.post(API_URL, headers=headers, json=payload, timeout=60)
         output = response.json()
 
+        # Si succès (liste)
         if isinstance(output, list) and len(output) > 0:
             return output[0].get("generated_text", "Je n'ai pas pu générer de réponse.")
         
+        # Gestion des erreurs renvoyées par l'API
         if isinstance(output, dict) and "error" in output:
-            return f"❌ Erreur IA : {output['error']}"
+            err_msg = output["error"]
+            if "currently loading" in err_msg.lower():
+                return "⏳ Démarrage des serveurs en cours... Réessaie dans 20 secondes !"
+            return f"❌ Erreur IA : {err_msg}"
             
-        return "❌ Le moteur ne répond pas. Réessaye dans un instant."
+        return "❌ Le moteur ne répond pas (Format inconnu). Réessaie ?"
 
     except Exception as e:
         return f"📡 Erreur de connexion : {str(e)}"
@@ -85,7 +93,7 @@ if user_input := st.chat_input("Envoyez un message..."):
 
     with st.chat_message("assistant"):
         placeholder = st.empty()
-        placeholder.markdown("*Klayz réfléchit...*")
+        placeholder.markdown("*Klayz analyse...*")
         
         full_response = ask_klayz(user_input)
         
