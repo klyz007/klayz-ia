@@ -1,79 +1,153 @@
 import streamlit as st
 import requests
 import time
+import os
+from datetime import datetime
 
-# ===================== CONFIGURATION PAGE =====================
-st.set_page_config(page_title="Klayz IA", page_icon="⚡", layout="wide")
+# ==========================================
+# CONFIGURATION KLAYZ (SÉCURISÉE)
+# ==========================================
+API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
+
+# ✅ Token sécurisé via Secrets
+HF_TOKEN = os.getenv("HF_TOKEN")
+
+HEADERS = {
+    "Authorization": f"Bearer {HF_TOKEN}"
+}
+
+SYSTEM_PROMPT = (
+    "Tu es Klayz, une intelligence artificielle ultra-avancée, élégante et serviable. "
+    "Tu réponds avec précision. Tu ne mentionnes jamais OpenAI ou Anthropic. "
+    "Tu es fier d'être Klayz."
+)
+
+# ==========================================
+# INTERFACE
+# ==========================================
+st.set_page_config(page_title="Klayz AI Interface", page_icon="💎", layout="wide")
 
 st.markdown("""
     <style>
-    .stApp { background-color: #0e1117; color: #ffffff; }
-    .stChatMessage { border-radius: 15px; border: 1px solid #1f2937; margin-bottom: 10px; }
-    h1 { color: #00f5ff; text-align: center; font-family: 'Courier New', monospace; }
+    .stApp {
+        background: radial-gradient(circle at top right, #1a1c23, #0e1117);
+        color: #e0e0e0;
+    }
+    .stChatMessage {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        border-radius: 15px !important;
+    }
+    section[data-testid="stSidebar"] {
+        background-color: #0b0d11 !important;
+    }
+    .main-title {
+        background: -webkit-linear-gradient(#60efff, #00ff87);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 800;
+        font-size: 3rem;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1>⚡ KLAYZ NEURAL INTERFACE</h1>", unsafe_allow_html=True)
-
-# ===================== FONCTION API (QWEN 2.5 - ACCÈS LIBRE) =====================
-def ask_klayz(prompt):
-    # Ce modèle est en accès LIBRE : pas de formulaire Meta !
-    API_URL = "https://router.huggingface.co/hf-inference/models/Qwen/Qwen2.5-7B-Instruct"
+# ==========================================
+# LOGIQUE IA
+# ==========================================
+def ask_klayz(messages):
+    formatted_prompt = f"System: {SYSTEM_PROMPT}\n"
     
-    try:
-        token = st.secrets["HF_TOKEN"]
-        token = token.replace('"', '').replace("'", "").strip()
-        headers = {"Authorization": f"Bearer {token}"}
-    except:
-        return "⚠️ Erreur : Token absent des Secrets Streamlit."
+    for msg in messages:
+        role = "User" if msg["role"] == "user" else "Klayz"
+        formatted_prompt += f"{role}: {msg['content']}\n"
+    
+    formatted_prompt += "Klayz:"
 
     payload = {
-        "inputs": f"<|im_start|>system\nTu es Klayz, une IA amicale. Réponds toujours en français.<|im_end|>\n<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n",
-        "parameters": {"max_new_tokens": 512, "temperature": 0.7},
-        "options": {"wait_for_model": True}
+        "inputs": formatted_prompt,
+        "parameters": {
+            "max_new_tokens": 500,
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "do_sample": True,
+            "return_full_text": False
+        }
     }
 
     try:
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=40)
-        output = response.json()
-        
-        if isinstance(output, list) and len(output) > 0:
-            full_text = output[0].get("generated_text", "")
-            # On nettoie pour n'afficher que la réponse
-            return full_text.split("assistant\n")[-1].strip()
-        
-        if isinstance(output, dict) and "error" in output:
-            return f"❌ Erreur Serveur : {output['error']}"
-            
-        return "❌ Problème de réponse."
-    except Exception as e:
-        return f"📡 Erreur : {str(e)}"
+        response = requests.post(API_URL, headers=HEADERS, json=payload, timeout=20)
 
-# ===================== INTERFACE CHAT =====================
+        # Gestion des erreurs API HF
+        if response.status_code == 503:
+            return "⏳ Le modèle est en cours de chargement... réessaie dans quelques secondes."
+
+        response.raise_for_status()
+        res_json = response.json()
+
+        if isinstance(res_json, list):
+            return res_json[0]['generated_text'].strip()
+
+        return "⚠️ Réponse inattendue du serveur."
+
+    except Exception as e:
+        return f"⚠️ Erreur : {str(e)}"
+
+# ==========================================
+# MÉMOIRE
+# ==========================================
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Système débloqué. **Klayz** (vQwen) est prêt et sans licence Meta !"}]
+    st.session_state.messages = []
+    st.session_state.messages.append({
+        "role": "assistant",
+        "content": "Klayz initialisé. Que veux-tu explorer ?"
+    })
+
+# ==========================================
+# SIDEBAR
+# ==========================================
+with st.sidebar:
+    st.markdown("<h1 style='color: #00ff87;'>Klayz Core</h1>", unsafe_allow_html=True)
+    st.write(f"📅 {datetime.now().strftime('%d/%m/%Y')}")
+    
+    st.divider()
+    st.metric("Messages", len(st.session_state.messages))
+
+    if st.button("🔥 Reset mémoire"):
+        st.session_state.messages = []
+        st.rerun()
+
+    st.divider()
+    st.info("Modèle : Mistral-7B")
+
+# ==========================================
+# UI CHAT
+# ==========================================
+st.markdown("<h1 class='main-title'>KLAYZ AI</h1>", unsafe_allow_html=True)
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-if user_input := st.chat_input("Ta question pour Klayz..."):
+# ==========================================
+# INPUT
+# ==========================================
+if user_input := st.chat_input("Parle à Klayz..."):
     st.session_state.messages.append({"role": "user", "content": user_input})
+
     with st.chat_message("user"):
         st.markdown(user_input)
 
     with st.chat_message("assistant"):
-        placeholder = st.empty()
-        placeholder.markdown("⚡ *Liaison neuronale...*")
-        
-        full_response = ask_klayz(user_input)
-        
-        # Affichage fluide
-        displayed_text = ""
-        for char in full_response:
-            displayed_text += char
-            placeholder.markdown(displayed_text + "▌")
-            time.sleep(0.005)
-        placeholder.markdown(full_response)
-        
-        st.session_state.messages.append({"role": "assistant", "content": full_response})
+        with st.spinner("Klayz réfléchit..."):
+            answer = ask_klayz(st.session_state.messages)
+
+            msg_placeholder = st.empty()
+            full_text = ""
+
+            for char in answer:
+                full_text += char
+                msg_placeholder.markdown(full_text + "▌")
+                time.sleep(0.003)
+
+            msg_placeholder.markdown(full_text)
+
+    st.session_state.messages.append({"role": "assistant", "content": answer})
